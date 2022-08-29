@@ -24,9 +24,9 @@ ONCOKB_URL ?= https://www.oncokb.org/api/v1
 ONCOKB_TOKEN_FILE ?= $(REPO_ROOT)/token/oncokb_token.txt
 ONCOKB_TOKEN ?= $(shell cat $(ONCOKB_TOKEN_FILE))
 ONCOKB_HEADER ?= -H "accept: application/json" -H "Authorization: Bearer $(ONCOKB_TOKEN)"
+
 # All Gene endpoint
 ONCOKB_ALLGENE ?= /utils/allCuratedGenes
-
 # Genes curated by oncoKB
 ONCOKB_GENE_LIST ?= oncoKB.geneList.json
 # Extract gene symbols
@@ -35,6 +35,11 @@ ONCOKB_GENES = $(shell jq -r '.[].hugoSymbol' $(ONCOKB_DIR)/$(ONCOKB_GENE_LIST) 
 #$(wordlist 1,$(shell expr $(words $(ONCOKB_GENE_INCLUDE)) - 1),$(ONCOKB_GENE_INCLUDE))
 ONCOKB_GENE_INCLUDE_PRE = $(foreach gene,$(ONCOKB_GENES),INFO/ANN ~ '|$(gene)|' ||)
 ONCOKB_GENE_INCLUDE = $(wordlist 1,$(shell expr $(words $(ONCOKB_GENE_INCLUDE_PRE)) - 1),$(ONCOKB_GENE_INCLUDE_PRE))
+
+# Variant by Genomic Change Endpoint
+ONCOKB_GCHANGE ?= /annotate/mutations/byGenomicChange
+ONCOKB_VAR_JSON ?= oncoKB.gnomad_var.json
+
 
 #GNOMAD variants within oncoKB curated genes
 GNOMAD_ONCOKB_VCF ?= $(subst .vcf,.oncokb.vcf,$(GNOMAD_VCF))
