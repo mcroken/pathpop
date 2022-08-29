@@ -9,6 +9,7 @@ GNOMAD_VCF ?= $(notdir $(GNOMAD_VCF_URL))
 
 # snpEff annotated VCF
 SNPEFF_VCF ?= $(subst .vcf,.snpeff.vcf,$(GNOMAD_VCF))
+SNPEFF_TBL ?= $(patsubst %.vcf.bgz,%.tbl.bgz,$(SNPEFF_VCF))
 
 # Genome Database used by snpEff. Must match genome of GNOMAD_VCF_URL
 GENOME_SNPEFF ?= GRCh37.p13
@@ -58,7 +59,7 @@ $(INPUT_DIR) $(SNPEFF_DIR) $(ONCOKB_DIR) :
 	mkdir $@
 
 $(INPUT_DIR)/$(GNOMAD_VCF) : | $(INPUT_DIR)
-	wget --output-document=$@ "$(GNOMAD_VCF_URL)" 
+	wget --output-document=$@ "$(GNOMAD_VCF_URL)"
 
 %.tbi : %
 	tabix $<
@@ -66,19 +67,18 @@ $(INPUT_DIR)/$(GNOMAD_VCF) : | $(INPUT_DIR)
 $(SNPEFF_DIR)/$(SNPEFF_VCF) : $(INPUT_DIR)/$(GNOMAD_VCF) $(INPUT_DIR)/$(GNOMAD_VCF).tbi | $(SNPEFF_DIR)
 	snpEff eff -csvStats $(dir $@)summary.csv $(GENOME_SNPEFF) $< | bgzip > $@
 
-$(SNPEFF_DIR)/$(FILT_VCF) : $(SNPEFF_DIR)/$(SNPEFF_VCF) $(SNPEFF_DIR)/$(SNPEFF_VCF).tbi | $(SNPEFF_DIR)
+$(SNPEFF_DIR)/$(FILT_VCF) : $(SNPEFF_DIR)/$(SNPEFF_VCF) $(SNPEFF_DIR)/$(SNPEFF_VCF).tbi
 	bcftools view --apply-filters "$(FILTERS)" $< | bgzip > $@
+
+$(SNPEFF_DIR)/$(SNPEFF_TBL) : $(SNPEFF_DIR)/$(SNPEFF_VCF) $(SNPEFF_DIR)/$(SNPEFF_VCF).tbi
+	bcftools query -i "FILTER == 'PASS'" -f "%INFO/ANN\t%INFO/AC\t%INFO/AN\t%INFO/AF\t%CHROM,%POS,%REF,%ALT\n" $< | tr '|' '\t' | bgzip > $@
 
 all : $(INPUT_DIR)/$(GNOMAD_VCF) $(INPUT_DIR)/$(GNOMAD_VCF).tbi \
 	$(SNPEFF_DIR)/$(SNPEFF_VCF) $(SNPEFF_DIR)/$(SNPEFF_VCF).tbi \
 	$(ONCOKB_DIR)/$(GNOMAD_ONCOKB_VCF) $(ONCOKB_DIR)/$(GNOMAD_ONCOKB_VCF).tbi
 
 
-test : $(ONCOKB_DIR)/$(ONCOKB_GENE_LIST)
-	echo "$(words $(ONCOKB_GENE_INCLUDE))"
-	echo "$(shell expr $(words $(ONCOKB_GENE_INCLUDE)) - 1)"
-	echo "$(wordlist 1,$(shell expr $(words $(ONCOKB_GENE_INCLUDE)) - 1),$(ONCOKB_GENE_INCLUDE))"
-
+test : $(SNPEFF_DIR)/$(SNPEFF_TBL)
 
 purge : clean
 	rm -r $(INPUT_DIR)/
