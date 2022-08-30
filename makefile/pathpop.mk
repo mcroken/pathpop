@@ -41,9 +41,10 @@ ONCOKB_GENE_INCLUDE = $(wordlist 1,$(shell expr $(words $(ONCOKB_GENE_INCLUDE_PR
 ONCOKB_GCHANGE ?= /annotate/mutations/byGenomicChange
 ONCOKB_VAR_JSON ?= oncoKB.gnomad_var.json
 
-
 #GNOMAD variants within oncoKB curated genes
 GNOMAD_ONCOKB_VCF ?= $(subst .vcf,.oncokb.vcf,$(GNOMAD_VCF))
+GNOMAD_ONCOKB_TBL ?= $(patsubst %.vcf.bgz,%.tbl.bgz,$(GNOMAD_ONCOKB_VCF))
+GNOMAD_ONCOKB_PLOT ?= $(patsubst %.vcf.bgz,%.plot.tbl.gz,$(GNOMAD_ONCOKB_VCF))
 
 INPUT_DIR ?= input
 SNPEFF_DIR ?= snpEff
@@ -54,6 +55,14 @@ $(ONCOKB_DIR)/$(ONCOKB_GENE_LIST) : | $(ONCOKB_DIR) $(ONCOKB_TOKEN_FILE)
 
 $(ONCOKB_DIR)/$(GNOMAD_ONCOKB_VCF) : $(SNPEFF_DIR)/$(SNPEFF_VCF) $(ONCOKB_DIR)/$(ONCOKB_GENE_LIST)
 	bcftools view -i "$(ONCOKB_GENE_INCLUDE)" $< | bgzip > $@
+
+$(ONCOKB_DIR)/$(GNOMAD_ONCOKB_TBL) : $(ONCOKB_DIR)/$(GNOMAD_ONCOKB_VCF) $(ONCOKB_DIR)/$(GNOMAD_ONCOKB_VCF).tbi
+	bcftools query -i "FILTER == 'PASS' && INFO/AC > 1" -f "%CHROM,%POS,%REF,%ALT\t%INFO/AC\t%INFO/AN\t%INFO/AF\t%INFO/ANN\n" $< | tr '|' '\t' | bgzip > $@
+
+$(ONCOKB_DIR)/$(GNOMAD_ONCOKB_PLOT) : $(ONCOKB_DIR)/$(GNOMAD_ONCOKB_TBL)
+	printf "gen_coor\tAC\tAN\tAF\tSO\timpact\n" > $(basename $@)
+	gunzip -c $< | cut -f1-4,6-7 >> $(basename $@)
+	bgzip $(basename $@)
 
 $(INPUT_DIR) $(SNPEFF_DIR) $(ONCOKB_DIR) :
 	mkdir $@
@@ -71,14 +80,14 @@ $(SNPEFF_DIR)/$(FILT_VCF) : $(SNPEFF_DIR)/$(SNPEFF_VCF) $(SNPEFF_DIR)/$(SNPEFF_V
 	bcftools view --apply-filters "$(FILTERS)" $< | bgzip > $@
 
 $(SNPEFF_DIR)/$(SNPEFF_TBL) : $(SNPEFF_DIR)/$(SNPEFF_VCF) $(SNPEFF_DIR)/$(SNPEFF_VCF).tbi
-	bcftools query -i "FILTER == 'PASS'" -f "%INFO/ANN\t%INFO/AC\t%INFO/AN\t%INFO/AF\t%CHROM,%POS,%REF,%ALT\n" $< | tr '|' '\t' | bgzip > $@
+	bcftools query -i "FILTER == 'PASS' && INFO/AC > 1" -f "%INFO/ANN\t%INFO/AC\t%INFO/AN\t%INFO/AF\t%CHROM,%POS,%REF,%ALT\n" $< | tr '|' '\t' | bgzip > $@
 
 all : $(INPUT_DIR)/$(GNOMAD_VCF) $(INPUT_DIR)/$(GNOMAD_VCF).tbi \
 	$(SNPEFF_DIR)/$(SNPEFF_VCF) $(SNPEFF_DIR)/$(SNPEFF_VCF).tbi \
 	$(ONCOKB_DIR)/$(GNOMAD_ONCOKB_VCF) $(ONCOKB_DIR)/$(GNOMAD_ONCOKB_VCF).tbi
 
 
-test : $(SNPEFF_DIR)/$(SNPEFF_TBL)
+test : $(ONCOKB_DIR)/$(GNOMAD_ONCOKB_TBL)
 
 purge : clean
 	rm -r $(INPUT_DIR)/
