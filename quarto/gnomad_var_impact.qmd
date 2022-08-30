@@ -4,38 +4,37 @@ author: "Matt Croken"
 format: beamer
 editor: visual
 output: beamer_presentation
-  theme: "Marburg"
 params:
   project_dir: "/usr/local/data/work"
 ---
 
-```{r}
-library(tidyverse)
-library(vroom)
+```{r,echo=FALSE,include=FALSE}
+library(tidyverse, quietly = TRUE)
+library(vroom, quietly = TRUE)
+library(ggplot2, quietly = TRUE)
 ```
 
 ## Read My Table
 
 ```{r}
-file <- str_c(params$project_dir,"snpEff/tmp.gz")
-x <- vroom(file)
+oncokb_gnomad_file <- str_c(params$project_dir,"/oncoKB/gnomad.exomes.r2.1.1.sites.oncokb.plot.tbl.gz")
+oncokb_gnomad <- vroom(
+  delim = "\t",
+  file = oncokb_gnomad_file,
+  col_names = TRUE,
+  col_select = 1:6,
+  show_col_types = TRUE
+)
 ```
 
-## Quarto
-
-Quarto enables you to weave together content and executable code into a finished presentation. To learn more about Quarto presentations see <https://quarto.org/docs/presentations/>.
-
-## Bullets
-
-When you click the **Render** button a document will be generated that includes:
-
--   Content authored with markdown
--   Output from executable code
-
-## Code
-
-When you click the **Render** button a presentation will be generated that includes both content and the output of embedded code. You can embed code like this:
+```{r}
+oncokb_gnomad_p <- ggplot(oncokb_gnomad,aes(impact,AF)) +
+  geom_violin(aes(fill = impact )) +
+  scale_y_log10()
+oncokb_gnomad_p
+```
 
 ```{r}
-1 + 1
+oncokb_gnomad %>%
+  filter(str_detect(X94,"[A-z]"))
 ```
