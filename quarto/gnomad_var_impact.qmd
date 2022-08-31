@@ -1,6 +1,7 @@
 ---
-title: "gnomad impact"
+title: "Presence of Deleterious Variants in the gnomad Population Data Set"
 author: "Matt Croken"
+date: 2022 August 25
 format: beamer
 editor: visual
 output: beamer_presentation
@@ -14,7 +15,21 @@ library(vroom, quietly = TRUE)
 library(ggplot2, quietly = TRUE)
 ```
 
-## Read My Table
+## Allele Frequency in Populations
+
+-   The compilation and harmonization of genomic sequencing data is an ongoing and critical effort impacting multiple scientific domains
+
+-   In the clinical sequencing context, understanding the frequency of alleles in populations is vital to variant interpretation
+
+## The Clinical Context
+
+-   Generally, variants occurring more frequently in a population are less likely to be linked to a disease state
+
+-   When attempting to detect somatic variants without a 'Normal' control, population
+
+## gnomAD
+
+The gnomAD database succeeds and builds on
 
 ```{r}
 oncokb_gnomad_file <- str_c(params$project_dir,"/oncoKB/gnomad.exomes.r2.1.1.sites.oncokb.plot.tbl.gz")
@@ -23,18 +38,21 @@ oncokb_gnomad <- vroom(
   file = oncokb_gnomad_file,
   col_names = TRUE,
   col_select = 1:6,
-  show_col_types = TRUE
+  show_col_types = FALSE
 )
 ```
+
+## SnpEff Impacts of gnomAD Variants
 
 ```{r}
 oncokb_gnomad_p <- ggplot(oncokb_gnomad,aes(impact,AF)) +
   geom_violin(aes(fill = impact )) +
-  scale_y_log10()
+  geom_hline(aes(yintercept=0.05),color="red") +
+  scale_y_log10() +
+  theme_classic()
 oncokb_gnomad_p
 ```
 
 ```{r}
-oncokb_gnomad %>%
-  filter(str_detect(X94,"[A-z]"))
+#oncokb_gnomad %>% filter(AF > 0.05 ) %>% arrange(AF)
 ```
