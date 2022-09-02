@@ -1,7 +1,7 @@
 ---
 title: "Presence of Deleterious Variants in the gnomad Population Data Set"
 author: "Matt Croken"
-date: 2022 August 25
+date: "2022 September 02"
 format: beamer
 editor: visual
 output: beamer_presentation
@@ -13,6 +13,7 @@ params:
 library(tidyverse, quietly = TRUE)
 library(vroom, quietly = TRUE)
 library(ggplot2, quietly = TRUE)
+library(knitr, quietly = TRUE)
 ```
 
 ## Allele Frequency in Populations
@@ -25,11 +26,69 @@ library(ggplot2, quietly = TRUE)
 
 -   Generally, variants occurring more frequently in a population are less likely to be linked to a disease state
 
--   When attempting to detect somatic variants without a 'Normal' control, population
+-   When attempting to detect somatic variants without a 'Normal' control, population-level allele frequencies are used to identify and exclude suspected germ-line variants
+
+## The Clinical Context, but More Complicated
+
+-   There are no established best practices or guidelines for setting an allele frequency threshold
+
+    -   Too low risks overwhelming the variant curator
+
+    -   Too high risks excluding relevant variants
+
+-   As NGS panels trend larger, the risk of error increases with the volume of variants
+
+-   Tumor Mutational Burden, an important therapeutic indicator, is usually calculated in a fully automated way
 
 ## gnomAD
 
-The gnomAD database succeeds and builds on
+-   The gnomAD database succeeds and builds on many past aggregation efforts
+
+-   gnomAD is a carefully curated and nuanced data set
+
+    -   It is most frequently used in decidedly un-nuanced ways
+
+## Preliminary Objectives
+
+-   Identify the extent to which predicted deleterious variants exist in gnomAD and at what frequencies
+
+-   Identify gnomAD variants in OncoKB (cancer domain specific)
+
+## Methodology - Tools
+
+-   [github.com/mcroken/pathpop](https://github.com/mcroken/pathpop)
+
+-   bcftools
+
+    -   Query and reformat VCF files
+
+-   SnpEff
+
+    -   Predict effects of genomic variants on transcripts
+
+-   GNU Make
+
+    -   Workflow orchestration & reproducibility
+
+## Methodology - Tools
+
+-   OncoKB REST API
+
+    -   Identify relevant genes to target
+
+    -   Query for oncogenic variants
+
+-   Quarto
+
+-   Tidyverse
+
+    -   Data analysis and visualization
+
+## Analysis Strategy
+
+![](analysis_strategy.png){fig-align="center"}
+
+## Impacts of gnomAD Variants in OncoKB Curated Genes
 
 ```{r}
 oncokb_gnomad_file <- str_c(params$project_dir,"/oncoKB/gnomad.exomes.r2.1.1.sites.oncokb.plot.tbl.gz")
@@ -39,20 +98,27 @@ oncokb_gnomad <- vroom(
   col_names = TRUE,
   col_select = 1:6,
   show_col_types = FALSE
-)
+) %>% rename(Impact = impact)
 ```
 
-## SnpEff Impacts of gnomAD Variants
-
 ```{r}
-oncokb_gnomad_p <- ggplot(oncokb_gnomad,aes(impact,AF)) +
-  geom_violin(aes(fill = impact )) +
-  geom_hline(aes(yintercept=0.05),color="red") +
+oncokb_gnomad_p <- ggplot(oncokb_gnomad,aes(Impact,AF)) +
+  geom_violin(show.legend=FALSE,aes(fill = Impact )) +
+  geom_hline(aes(yintercept=0.01),color="red") +
   scale_y_log10() +
   theme_classic()
 oncokb_gnomad_p
 ```
 
+## Impacts of gnomAD Variants in OncoKB Curated Genes
+
 ```{r}
-#oncokb_gnomad %>% filter(AF > 0.05 ) %>% arrange(AF)
+oncokb_gnomad %>%
+  group_by(Impact) %>%
+  summarize(
+    `Greater than 1%` = sum(AF > 0.01),
+    `Less than 1%` = sum(AF <= 0.01)
+  ) %>%
+  kable()
+
 ```
