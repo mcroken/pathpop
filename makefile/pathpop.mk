@@ -25,6 +25,7 @@ ONCOKB_URL ?= https://www.oncokb.org/api/v1
 ONCOKB_TOKEN_FILE ?= $(REPO_ROOT)/token/oncokb_token.txt
 ONCOKB_TOKEN ?= $(shell cat $(ONCOKB_TOKEN_FILE))
 ONCOKB_HEADER ?= -H "accept: application/json" -H "Authorization: Bearer $(ONCOKB_TOKEN)"
+ONCOKB_HEADER2 ?= -H "Content-Type: application/json"
 
 # All Gene endpoint
 ONCOKB_ALLGENE ?= /utils/allCuratedGenes
@@ -33,7 +34,6 @@ ONCOKB_GENE_LIST ?= oncoKB.geneList.json
 # Extract gene symbols
 ONCOKB_GENES = $(shell jq -r '.[].hugoSymbol' $(ONCOKB_DIR)/$(ONCOKB_GENE_LIST) | tr '\n' ' ')
 # bcftools 'include' expression
-#$(wordlist 1,$(shell expr $(words $(ONCOKB_GENE_INCLUDE)) - 1),$(ONCOKB_GENE_INCLUDE))
 ONCOKB_GENE_INCLUDE_PRE = $(foreach gene,$(ONCOKB_GENES),INFO/ANN ~ '|$(gene)|' ||)
 ONCOKB_GENE_INCLUDE = $(wordlist 1,$(shell expr $(words $(ONCOKB_GENE_INCLUDE_PRE)) - 1),$(ONCOKB_GENE_INCLUDE_PRE))
 
@@ -46,8 +46,9 @@ GNOMAD_ONCOKB_VCF ?= $(subst .vcf,.oncokb.vcf,$(GNOMAD_VCF))
 GNOMAD_ONCOKB_TBL ?= $(patsubst %.vcf.bgz,%.tbl.bgz,$(GNOMAD_ONCOKB_VCF))
 GNOMAD_ONCOKB_PLOT ?= $(patsubst %.vcf.bgz,%.plot.tbl.gz,$(GNOMAD_ONCOKB_VCF))
 
-# OncoKB query
+# OncoKB variant query
 ONCOKB_QUERY ?= $(patsubst %.vcf.bgz,%.query.json,$(GNOMAD_ONCOKB_VCF))
+ONCOKB_RESPONSE ?= $(patsubst %.vcf.bgz,%.response.json,$(GNOMAD_ONCOKB_VCF))
 
 INPUT_DIR ?= input
 SNPEFF_DIR ?= snpEff
@@ -68,10 +69,26 @@ $(ONCOKB_DIR)/$(GNOMAD_ONCOKB_PLOT) : $(ONCOKB_DIR)/$(GNOMAD_ONCOKB_TBL)
 	gunzip -c $< | cut -f1-4,6-7 >> $(basename $@)
 	bgzip $(basename $@)
 
-$(ONCOKB_API_DIR)/$(ONCOKB_QUERY) : $(ONCOKB_DIR)/$(GNOMAD_ONCOKB_PLOT)
+$(ONCOKB_API_DIR)/$(ONCOKB_QUERY) : $(ONCOKB_DIR)/$(GNOMAD_ONCOKB_PLOT) | $(ONCOKB_API_DIR)
 	gunzip -c $< | \
 		tail -n+2 | \
-		awk 'BEGIN{ printf("[") }{ split($$1,gc,',');if (NR > 1){printf ","}; printf("{\"%s,%s,%s,%s,%s\"}",gc[1],gc[2],gc[2]+length(gc[3])-1,gc[3],gc[4]) }END{ printf("]")}' > $@
+		awk 'BEGIN{ printf("[ ") } \
+		{ \
+		  if($$4 < 0.01){ next }; \
+		  split($$1,gc,/,/); \
+		  if (NR > 1){printf(",")}; \
+		  printf("{\"genomicLocation\":\"%s,%s,%s,%s,%s\",\"evidenceTypes\":[ \"ONCOGENIC\" ],\"referenceGenome\":\"GRCh37\" }",gc[1],gc[2],gc[2]+length(gc[3])-1,gc[3],gc[4]) \
+		}END{ printf(" ]")}' > $@
+
+$(ONCOKB_API_DIR)/$(ONCOKB_RESPONSE) : $(ONCOKB_API_DIR)/$(ONCOKB_QUERY)
+	max_value=$(shell jq '. | length' $<); i=0; while [[ $$i -lt $$max_value ]];do \
+		j=$$(( $$i+100 )); \
+		Q=$$(jq ".[$$i:$$j]" $<); \
+		curl -X POST $(ONCOKB_HEADER) $(ONCOKB_HEADER2) $(ONCOKB_URL)$(ONCOKB_GCHANGE) -d "$$Q"; \
+		i=$$i+101; \
+	done > $@.tmp
+	jq -s 'add' $@.tmp > $@
+	rm $@.tmp
 
 $(INPUT_DIR) $(SNPEFF_DIR) $(ONCOKB_DIR) $(ONCOKB_API_DIR) :
 	mkdir $@
