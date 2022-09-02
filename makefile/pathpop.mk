@@ -49,6 +49,7 @@ GNOMAD_ONCOKB_PLOT ?= $(patsubst %.vcf.bgz,%.plot.tbl.gz,$(GNOMAD_ONCOKB_VCF))
 # OncoKB variant query
 ONCOKB_QUERY ?= $(patsubst %.vcf.bgz,%.query.json,$(GNOMAD_ONCOKB_VCF))
 ONCOKB_RESPONSE ?= $(patsubst %.vcf.bgz,%.response.json,$(GNOMAD_ONCOKB_VCF))
+ONCOKB_RESPONSE_ONCOGENIC ?= $(patsubst %.vcf.bgz,%.tbl,$(GNOMAD_ONCOKB_VCF))
 
 INPUT_DIR ?= input
 SNPEFF_DIR ?= snpEff
@@ -89,6 +90,9 @@ $(ONCOKB_API_DIR)/$(ONCOKB_RESPONSE) : $(ONCOKB_API_DIR)/$(ONCOKB_QUERY)
 	done > $@.tmp
 	jq -s 'add' $@.tmp > $@
 	rm $@.tmp
+
+$(ONCOKB_API_DIR)/$(ONCOKB_RESPONSE_ONCOGENIC) : $(ONCOKB_API_DIR)/$(ONCOKB_RESPONSE)
+	jq -r '.[].oncogenic' $< | sort | uniq -c | sed 's/^ *//' > $@
 
 $(INPUT_DIR) $(SNPEFF_DIR) $(ONCOKB_DIR) $(ONCOKB_API_DIR) :
 	mkdir $@
