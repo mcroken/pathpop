@@ -116,9 +116,21 @@ oncokb_gnomad_p
 oncokb_gnomad %>%
   group_by(Impact) %>%
   summarize(
-    `Greater than 1%` = sum(AF > 0.01),
-    `Less than 1%` = sum(AF <= 0.01)
+    `AF greater than 1%` = sum(AF > 0.01),
+    `AF less than 1%` = sum(AF <= 0.01)
   ) %>%
   kable()
 
+```
+
+## "Germline" Variants in OncoKB
+
+```{r}
+gnomad_oncogenic_file <- str_c(params$project_dir,"/oncoKB_api/gnomad.exomes.r2.1.1.sites.oncokb.tbl")
+gnomad_oncogenic <- read_delim(
+  file = gnomad_oncogenic_file,
+  delim = ' ',
+  col_names = c('n',"Oncogenic Status")
+)
+gnomad_oncogenic %>% kable()
 ```
