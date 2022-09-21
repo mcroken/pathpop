@@ -1,5 +1,5 @@
 ---
-title: "Presence of Deleterious Variants in the gnomad Population Data Set"
+title: "Presence of Deleterious Variants in the gnomAD Population Data Set"
 author: "Matt Croken"
 date: "2022 September 02"
 format: beamer
@@ -26,7 +26,7 @@ library(knitr, quietly = TRUE)
 
 -   Generally, variants occurring more frequently in a population are less likely to be linked to a disease state
 
--   When attempting to detect somatic variants without a 'Normal' control, population-level allele frequencies are used to identify and exclude suspected germ-line variants
+-   When attempting to detect somatic variants without a 'Normal' control, population-level allele frequencies are used to identify and exclude suspected germline variants
 
 ## The Clinical Context, but More Complicated
 
@@ -123,7 +123,7 @@ oncokb_gnomad %>%
 
 ```
 
-## "Germline" Variants in OncoKB
+## "Germline" (AF \> 1%) Variants in OncoKB
 
 ```{r}
 gnomad_oncogenic_file <- str_c(params$project_dir,"/oncoKB_api/gnomad.exomes.r2.1.1.sites.oncokb.tbl")
@@ -134,3 +134,37 @@ gnomad_oncogenic <- read_delim(
 )
 gnomad_oncogenic %>% kable()
 ```
+
+## "Germline" (AF \> 1%) Variants in OncoKB
+
+```{r}
+gnomad_hotspot_count_file <- str_c(params$project_dir,"/oncoKB_api/gnomad.exomes.r2.1.1.sites.oncokb.hotspot.tbl")
+gnomad_hotspot_count <- read_delim(
+  file = gnomad_hotspot_count_file,
+  delim = ' ',
+  col_names = c('n',"Hotspot")
+)
+gnomad_hotspot_count %>% kable()
+```
+
+## Conclusions
+
+-   Limited (but non-zero) number of variants strongly associated with cancer or predicted to be deleterious
+
+-   Significant number of variants which are likely oncogenic or deleterious
+
+-   As these variants have relatively high allele frequencies, the problem is not easily controlled by raising the AF threshold
+
+-   Flag or remove gnomAD variants which are actually reportable in advance
+
+## Future Directions
+
+-   Flag or remove gnomAD variants which are actually reportable
+
+    -   Production workflow to continually update
+
+-   Redo analysis without sub-setting the gnomAD data set
+
+-   Query additional databases for cancer-relevant variants
+
+-   Periodically query variants excluded as "germline" for novel disease associations.

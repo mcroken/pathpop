@@ -50,6 +50,7 @@ GNOMAD_ONCOKB_PLOT ?= $(patsubst %.vcf.bgz,%.plot.tbl.gz,$(GNOMAD_ONCOKB_VCF))
 ONCOKB_QUERY ?= $(patsubst %.vcf.bgz,%.query.json,$(GNOMAD_ONCOKB_VCF))
 ONCOKB_RESPONSE ?= $(patsubst %.vcf.bgz,%.response.json,$(GNOMAD_ONCOKB_VCF))
 ONCOKB_RESPONSE_ONCOGENIC ?= $(patsubst %.vcf.bgz,%.tbl,$(GNOMAD_ONCOKB_VCF))
+ONCOKB_RESPONSE_HOTSPOT ?= $(patsubst %.vcf.bgz,%.hotspot.tbl,$(GNOMAD_ONCOKB_VCF))
 
 INPUT_DIR ?= input
 SNPEFF_DIR ?= snpEff
@@ -94,6 +95,9 @@ $(ONCOKB_API_DIR)/$(ONCOKB_RESPONSE) : $(ONCOKB_API_DIR)/$(ONCOKB_QUERY)
 $(ONCOKB_API_DIR)/$(ONCOKB_RESPONSE_ONCOGENIC) : $(ONCOKB_API_DIR)/$(ONCOKB_RESPONSE)
 	jq -r '.[].oncogenic' $< | sort | uniq -c | sed 's/^ *//' > $@
 
+$(ONCOKB_API_DIR)/$(ONCOKB_RESPONSE_HOTSPOT) : $(ONCOKB_API_DIR)/$(ONCOKB_RESPONSE)
+	jq -r '.[].hotspot' $< | sort | uniq -c | sed 's/^ *//' > $@
+
 $(INPUT_DIR) $(SNPEFF_DIR) $(ONCOKB_DIR) $(ONCOKB_API_DIR) :
 	mkdir $@
 
@@ -115,7 +119,9 @@ $(SNPEFF_DIR)/$(SNPEFF_TBL) : $(SNPEFF_DIR)/$(SNPEFF_VCF) $(SNPEFF_DIR)/$(SNPEFF
 all : $(INPUT_DIR)/$(GNOMAD_VCF) $(INPUT_DIR)/$(GNOMAD_VCF).tbi \
 	$(SNPEFF_DIR)/$(SNPEFF_VCF) $(SNPEFF_DIR)/$(SNPEFF_VCF).tbi \
 	$(ONCOKB_DIR)/$(GNOMAD_ONCOKB_VCF) $(ONCOKB_DIR)/$(GNOMAD_ONCOKB_VCF).tbi \
-	$(ONCOKB_DIR)/$(GNOMAD_ONCOKB_TBL)
+	$(ONCOKB_DIR)/$(GNOMAD_ONCOKB_TBL) \
+	$(ONCOKB_API_DIR)/$(ONCOKB_RESPONSE_ONCOGENIC) \
+	$(ONCOKB_API_DIR)/$(ONCOKB_RESPONSE_HOTSPOT)
 
 test : 
 
